@@ -1,0 +1,100 @@
+---
+title: "S&P 500 Stock Analysis"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(glue)
+library(plotly)
+library(tidyr)
+library(padr)
+library(lubridate)
+library(dplyr)
+library(scales)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+```{r}
+# data preparation
+
+stock <-  read.csv("../dataset/all_stocks_5yr.csv")
+stock <- stock %>% 
+  mutate(
+    date = ymd(date),
+    Name = as.factor(Name)
+  )
+
+min_date <- min(stock$date)
+max_date <- max(stock$date)
+
+stock <- pad(stock, start_val = min_date, end_val = max_date, interval = "day", group = "Name")
+
+stock <- stock %>% 
+  fill(open, high, low, close, volume, .direction="down")
+
+open_agg <- stock %>% group_by(date) %>% mutate(sum_open= sum(open))
+
+tech_stock <- stock %>% 
+  filter(Name %in% c("GOOGL", "AAPL", "AMZN", "MSFT")) %>% 
+  select(Name, open, date)
+
+```
+
+```{r}
+plot_overall <- open_agg %>% ggplot(mapping = aes(x = date, 
+                                                  y = sum_open#,
+                                                  # text = glue("Date: {date}
+                                                  #             Open Price: {sum_open}")
+                                                  )
+                                    ) +
+  geom_line(col = "blue")+
+  labs(title = "S&P 500 Stock Open Price Movement 2013 - 2018",
+       subtitle = "source: kaggle",
+       x = NULL,
+       y = "open price",
+  )+
+  scale_y_continuous(labels = dollar_format(prefix = "$ "))+
+  theme_classic()
+```
+
+```{r}
+plot_tech_stock <- tech_stock %>% ggplot(mapping = aes(x = date, 
+                                                  y = open,
+                                                  text = glue("{Name}
+                                                              Date: {date}
+                                                              Open Price: {open}"),
+                                                  group = Name
+                                                  )
+                                    ) +
+  geom_line(aes(color = Name))+
+  labs(title = "S&P 500 Stock Open Price Movement 2013 - 2018",
+       subtitle = "source: kaggle",
+       x = NULL,
+       y = "open price",
+  )+
+  scale_y_continuous(labels = dollar_format(prefix = "$ "))+
+  theme_classic()
+```
+
+
+### Chart A
+
+```{r}
+ggplotly(plot_overall)
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+ggplotly(plot_tech_stock, tooltip = "text")
+```

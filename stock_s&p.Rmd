@@ -1,0 +1,156 @@
+---
+title: "Stock Market Index S&P 500 Analysis"
+author: "Gustana"
+date: "2023-5-27"
+output: 
+  html_document:
+    theme: simplex
+    highlight: kate
+    number_sections: true
+    fig_caption: true
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scoll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dataset Overview
+
+The dataset that I analyze is stock index S&P 500 from **2013 to 2018**. It contains 505 stocks in 6 columns:
+
+1. date -> stock transaction date
+2. open -> opening stock price
+3. high -> highest stock price
+4. low close -> lowest stock price
+5. volume -> volume transaction
+6. name -> stock name
+
+source: 
+<a href = "https://www.kaggle.com/code/faressayah/stock-market-analysis-prediction-using-lstm">
+kaggle
+</a>
+
+```{r echo=FALSE}
+stock <-  read.csv("../dataset/all_stocks_5yr.csv")
+head(stock)
+```
+
+# EDA
+
+## check data type
+```{r echo=FALSE}
+library(dplyr)
+glimpse(stock)
+
+```
+as we can see there are 2 column with inappropriate data type: **date and name**.
+
+so I will change data type of column date to date and column name to factor
+
+
+## change data type
+```{r, include=FALSE}
+library(lubridate)
+```
+
+
+```{r echo=FALSE}
+stock <- stock %>% 
+  mutate(
+    date = ymd(date),
+    Name = as.factor(Name)
+  )
+```
+
+```{r, echo=FALSE}
+glimpse(stock)
+```
+
+## add missing date
+
+```{r}
+wday(stock$date, label = T)[1:7]
+```
+
+in order to make line graph, the date must be available sequentially
+but as we can see there are no date on Saturday and Sunday
+
+so I decide to make a date range then fill the value with the previous value
+
+in order to make the date range, we need to get the min and max date value
+
+```{r, include=FALSE}
+library(padr)
+```
+
+
+```{r echo=FALSE}
+min_date <- min(stock$date)
+max_date <- max(stock$date)
+
+sprintf("min date: %s", min_date)
+sprintf("max date: %s", max_date)
+
+stock <- pad(stock, start_val = min_date, end_val = max_date, interval = "day", group = "Name")
+
+```
+
+## check empty value
+```{r echo=FALSE}
+colSums(is.na(stock))
+```
+
+there are some rows contain NA value
+
+we need to see what is the stock name from those rows
+
+```{r include=FALSE}
+NA_rows <- which(is.na(stock), arr.ind = T)
+NA_rows <- unique(NA_rows[, 1])
+```
+
+```{r include=FALSE}
+NA_rows_stock_name <- unique(stock[NA_rows, "Name"])
+```
+
+
+```{r, include=FALSE}
+library(tidyr)
+```
+
+
+```{r include=FALSE}
+stock <- stock %>% 
+  fill(open, high, low, close, volume, .direction="down")
+```
+
+```{r}
+anyNA(stock)
+```
+
+
+```{r echo=FALSE}
+summary(stock)
+```
+
+insight:
+
+- If we compare median and mean of all stock price (open, high, low, and close) respectively. It seems the value is pretty equal, this is because we generate statistic descriptive from all stocks.
+
+- Based on my research on investopedia.com, S&P 500 is one of most-widely watched index globally. But as we can see there's one or some stock that have no volume transaction
+
+- The value of 1st quarter is increased over time to 3rd quarter across all stock price feature
+
+
+```{r}
+#open price moving rate
+
+stock %>% 
+  filter(Name %in% c("AAPL", "GOOGL", "MSFT", "TSLA"))
+```
+
